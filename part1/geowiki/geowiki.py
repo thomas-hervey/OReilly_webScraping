@@ -1,5 +1,10 @@
-from urllib.request import urlopen
-from urllib.error import HTTPError
+import urllib3
+import certifi
+http = urllib3.PoolManager(
+	cert_reqs='CERT_REQUIRED',
+	ca_certs=certifi.where()
+)
+
 from bs4 import BeautifulSoup
 import datetime
 import random
@@ -10,16 +15,16 @@ import re
 random.seed(datetime.datetime.now())
 
 def getLinks(articleUrl):
-	html = urlopen("http://en.wikipedia.org"+articleUrl)
-	bsObj = BeautifulSoup(html)
+	html = http.request('GET', "http://en.wikipedia.org"+articleUrl)
+	bsObj = BeautifulSoup(html, "lxml")
 	return bsObj.find("div", {"id":"bodyContent"}).findAll("a",href=re.compile("^(/wiki/)((?!:).)*$"))
 
 def getHistoryIPs(pageUrl):
 	pageUrl = pageUrl.replace("/wiki/", "")
 	historyUrl = "http://en.wikipedia.org/w/index.php?title="+pageUrl+"&action=history"
 	print("history url is: "+historyUrl)
-	html = urlopen(historyUrl)
-	bsObj = BeautifulSoup(html)
+	html = http.request(historyUrl)
+	bsObj = BeautifulSoup(html, "lxml")
 
 	#finds only the links with class "mw-anonuserlink" which has IP adress instead of username
 	ipAddresses = bsObj.findAll("a", {"class":"mw-anonuserlink"})
@@ -30,8 +35,8 @@ def getHistoryIPs(pageUrl):
 
 def getCountry(ipAddress):
 	try:
-		response = urlopen("http://fregeoip.net/json/"+ipAddress).read().decode('utf-8')
-	except HTTPError:
+		response = http.request("http://fregeoip.net/json/"+ipAddress).read().decode('utf-8')
+	except error:
 		return None
 	responseJSON = json.loads(response)
 	return responseJSON.get("country_code")
